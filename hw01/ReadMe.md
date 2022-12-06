@@ -28,7 +28,12 @@ Use c to clean the screen.
 Use q to quit the game.
 
 # Troubleshooting
-If there is no gcc in your system, you can run this to install:
+If there is no `make` in your system, you can run this to install:
+```bash
+sudo apt-get install make
+```
+
+If there is no `gcc` in your system, you can run this to install:
 ```bash
 sudo apt-get install gcc
 ```
