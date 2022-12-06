@@ -282,4 +282,10 @@ int main(int argc, char *argv[])
         // render all stuff
         render();
     }
+
+    for (int i = 0; i < g_height; i++)
+    {
+        free(g_map[i]);
+    }
+    free(g_map);
 }

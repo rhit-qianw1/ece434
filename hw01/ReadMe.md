@@ -21,6 +21,8 @@ For example, you can run the game with a canvas has a width of 20 and a height o
 ./game 20 10
 ```
 
+(Note: If the canvas size is too big, the window may not fit in all the content. So, if you encounter some weired output, try a smaller canvas size, or enlarge your window.) 
+
 Inside the game, you can:  
 Use lower case w, a, s, d to move.  
 Use lower case p to switch the pen between up and down.(Yellow X for up, and green X for down)  
