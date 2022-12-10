@@ -1,0 +1,4 @@
+*.o
+game
+test_cpp
+test_input
