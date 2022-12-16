@@ -44,3 +44,16 @@ If you do not have the permission to run the game, you can try this:
 ```bash
 chmod +x game
 ```
+
+# hw01 grading
+
+| Points      | Description | Comment
+| ----------- | ----------- | -------
+|  8/8 | Etch-a-Sketch works | 
+|  3/2 | Code documented (including name) | Very nice documentation
+|  2/2 | Includes #!/usr/bin/env python3 and chmod +x |
+|  2/2 | install.sh included if needed | Makefile ws included!
+|  2/2 | Used hw01 directory |
+|  2/2 | ReadMe.md included |
+|  0/2 | Name in gitLearn and gitLearnFork | Missing
+| 19/20 | **Total**
