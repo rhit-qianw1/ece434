@@ -37,10 +37,10 @@ int g_pen_state = PEN_UP; // the pen state
 
 static struct termios old, current; // in relation to get input without hit enter
 
-Button g_btn_w;
-Button g_btn_a;
-Button g_btn_s;
-Button g_btn_d;
+Button g_btn_w; // P9_22, chip 0. line 2
+Button g_btn_a; // P9_21, chip 0. line 3
+Button g_btn_s; // P9_18, chip 0. line 4
+Button g_btn_d; // P9_17, chip 0. line 5
 
 /********************/
 
@@ -112,6 +112,7 @@ void init()
 
 }
 
+// get button state and return the button pushed
 char get_button(){
     
     while(true){
@@ -121,19 +122,6 @@ char get_button(){
         a = g_btn_a.read();
         s = g_btn_s.read();
         d = g_btn_d.read();
-
-
-        // if(w == 0 && a == 0){
-        //     return 'p';
-        // }
-
-        // if(w == 0 && s == 0){
-        //     return 'p';
-        // }
-
-        // if(w == 0 && d == 0){
-        //     return 'q';
-        // }
 
         if(w == 0){
             if(a == 0)
@@ -329,14 +317,15 @@ int main(int argc, char *argv[])
     }
 
     // print some messages
-    // char welcome_string[] = "Hi! Welcome to this Etch A Sketch game!\n";
-    // print_with_delay(welcome_string, 40);
+    char welcome_string[] = "Hi! Welcome to this Etch A Sketch game!\n";
+    print_with_delay(welcome_string, 40);
 
-    // char manual_string[] = "Use lower case w, a, s, d to move.\nUse lower case p to switch the pen between up and down. (Yellow \033[1;33mX\033[0m for up, and green \033[1;32mX\033[0m for down)\nUse c to clean the screen.\nUse q to quit the game\n";
-    // print_with_delay(manual_string, 10);
+    char manual_string[] = "Use lower case w, a, s, d to move.\nUse lower case p to switch the pen between up and down. (Yellow \033[1;33mX\033[0m for up, and green \033[1;32mX\033[0m for down)\nUse c to clean the screen.\nUse q to quit the game\n";
+    print_with_delay(manual_string, 10);
 
-    // print_with_delay("\n(Press any key to continue...)", 10);
-    // getch();
+    print_with_delay("\n(Press any key to continue...)", 10);
+
+    getch();
 
     system("clear");
 

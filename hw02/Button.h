@@ -1,3 +1,6 @@
+// Author: Wenzi Qian
+// A C++ class to read button state using gpiod
+
 #ifndef BUTTON_H_
 #define BUTTON_H_
 
@@ -9,7 +12,9 @@ public:
     Button();
     ~Button();
 
+    // init all the stuffs. Must be called before read.
     int init(int chip_number, int line_number);
+    // read button value
     int read();
 
 private:
