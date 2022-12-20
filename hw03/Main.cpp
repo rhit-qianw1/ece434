@@ -8,10 +8,13 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <errno.h>
 
 #include <termios.h>
 
 #include "Button.h"
+#include "i2c-dev.h"
+#include "i2cbusses.h"
 
 /* Map Objects*/
 
@@ -23,8 +26,8 @@
 /* Global Variables */
 char **g_map = NULL; // Store the map for drawing
 
-int g_width = -1; // map width
-int g_height = -1; // map height
+int g_width = 8; // map width
+int g_height = 8; // map height
 
 int g_gameover = 0; // mark if the game is over
 
@@ -37,10 +40,18 @@ int g_pen_state = PEN_UP; // the pen state
 
 static struct termios old, current; // in relation to get input without hit enter
 
-Button g_btn_w; // P9_22, chip 0. line 2
-Button g_btn_a; // P9_21, chip 0. line 3
-Button g_btn_s; // P9_18, chip 0. line 4
-Button g_btn_d; // P9_17, chip 0. line 5
+Button g_btn_w; // GPIO 31
+Button g_btn_a; // GPIO 5
+Button g_btn_s; // GPIO 30
+Button g_btn_d; // GPIO 115
+Button g_btn_pen; // GPIO 111
+Button g_btn_clear; // GPIO 110
+
+int g_i2cbus;
+int g_address;
+int g_file;
+char g_filename[20];
+int g_force = 0;
 
 /********************/
 
@@ -90,6 +101,25 @@ void fill_map(char map_object)
     }
 }
 
+
+// check if i2c is in a good state
+static int check_funcs(int file) {
+        unsigned long funcs;
+
+        /* check adapter functionality */
+        if (ioctl(file, I2C_FUNCS, &funcs) < 0) {
+                fprintf(stderr, "Error: Could not get the adapter "
+                        "functionality matrix: %s\n", strerror(errno));
+                return -1;
+        }
+
+        if (!(funcs & I2C_FUNC_SMBUS_WRITE_BYTE)) {
+                fprintf(stderr, MISSING_FUNC_FMT, "SMBus send byte");
+                return -1;
+        }
+        return 0;
+}
+
 // init necessary stuffs
 void init()
 {
@@ -105,38 +135,61 @@ void init()
     fill_map(MAP_BLANK);
 
     // init buttons
-    g_btn_w.init(0,2);
-    g_btn_a.init(0,3);
-    g_btn_s.init(0,4);
-    g_btn_d.init(0,5);
+    g_btn_w.init(31);
+    g_btn_a.init(5);
+    g_btn_s.init(30);
+    g_btn_d.init(115);
+    g_btn_pen.init(111);
+    g_btn_clear.init(110);
+
+    g_i2cbus = lookup_i2c_bus("2");
+    printf("i2cbus = %d\n", g_i2cbus);
+    if (g_i2cbus < 0)
+        printf("Cannot open i2c bus 2\n");
+
+     g_address = parse_i2c_address("0x70");
+    printf("address = 0x%2x\n", g_address);
+    if (g_address < 0)
+        printf("Cannot open address 0x70\n");;
+
+    g_file = open_i2c_dev(g_i2cbus, g_filename, sizeof(g_filename), 0);
+//      printf("file = %d\n", file);
+        if (g_file < 0
+         || check_funcs(g_file)
+         || set_slave_addr(g_file, g_address, g_force))
+                exit(1);
+
+        // Check the return value on these if there is trouble
+        i2c_smbus_write_byte(g_file, 0x21); // Start oscillator (p10)
+        i2c_smbus_write_byte(g_file, 0x81); // Disp on, blink off (p11)
+        i2c_smbus_write_byte(g_file, 0xe7); // Full brightness (page 15)
 
 }
+
+// Writes block of data to the display
+static int write_block(int file, __u16 *data) {
+        int res;
+        res = i2c_smbus_write_i2c_block_data(file, 0x00, 16,
+                (__u8 *)data);
+        return res;
+
+}
+
 
 // get button state and return the button pushed
 char get_button(){
     
     while(true){
 
-        bool w,a,s,d;
+        bool w,a,s,d,pen,clear;
         w = g_btn_w.is_released();
         a = g_btn_a.is_released();
         s = g_btn_s.is_released();
         d = g_btn_d.is_released();
+        pen = g_btn_pen.is_released();
+        clear = g_btn_clear.is_released();
 
         if(w){
-            if(a)
-            {
-                usleep(1000* 1000);
-                return 'p';
-            }
-                
-
-            if(s)
-                return 'c';
-
-            if(d)
-                return 'q';
-
             return 'w';
         }
         if(a){
@@ -148,6 +201,12 @@ char get_button(){
         }
         if(d){
             return 'd';
+        }
+        if(pen){
+            return 'p';
+        }
+        if(clear){
+            return 'c';
         }
 
         usleep(100000);
@@ -202,64 +261,42 @@ void update()
     }
 }
 
-// render cursor
-void render_cursor()
-{
-    if (g_pen_state == PEN_DOWN)
-    {
-        printf("\033[1;32mX \033[0m");
-    }
-    else
-    {
-        printf("\033[1;33mX \033[0m");
-    }
-}
-
 // render map
 void render_map()
 {
-    printf(" ");
-    for (int x = 0; x < g_width; x++)
-    {
-        printf("--");
-    }
-    printf("\n");
+    __u16 canvas[8];
+    memset(canvas, 0, 8*2);
 
     for (int y = 0; y < g_height; y++)
     {
-        printf("| ");
         for (int x = 0; x < g_width; x++)
         {
 
+            // render cursor
             if (x == g_cursor_x && y == g_cursor_y)
             {
-                render_cursor();
+                canvas[y] |= 1 << (8+x);
                 continue;
             }
 
             switch (g_map[y][x])
             {
             case MAP_BLANK:
-                printf("  ");
+                
                 break;
 
             case MAP_X:
-                printf("X ");
+                canvas[y] |= 1 << x;
                 break;
 
             default:
                 break;
             }
         }
-        printf("|\n");
     }
 
-    printf(" ");
-    for (int x = 0; x < g_width; x++)
-    {
-        printf("--");
-    }
-    printf("\n");
+    write_block(g_file, canvas);
+
 }
 
 // render status
@@ -300,28 +337,9 @@ void print_with_delay(const char *text, unsigned int millsecs)
 
 int main(int argc, char *argv[])
 {
-
-    // check if the number of parameter is valid
-    if (argc < 3)
-    {
-        printf("Please specify the width and the length of the canvas like this:\n ./game [width] [height]\n");
-        return 0;
-    }
-
-    g_width = atoi(argv[1]);
-    g_height = atoi(argv[2]);
-
-    if(g_width == 0 || g_height == 0){
-        printf("Invaild parameter\n");
-        return 0;
-    }
-
     // print some messages
     char welcome_string[] = "Hi! Welcome to this Etch A Sketch game!\n";
     print_with_delay(welcome_string, 40);
-
-    char manual_string[] = "Use lower case w, a, s, d to move.\nUse lower case p to switch the pen between up and down. (Yellow \033[1;33mX\033[0m for up, and green \033[1;32mX\033[0m for down)\nUse c to clean the screen.\nUse q to quit the game\n";
-    print_with_delay(manual_string, 10);
 
     print_with_delay("\n(Press any key to continue...)", 10);
 
@@ -329,7 +347,7 @@ int main(int argc, char *argv[])
 
     system("clear");
 
-    // init map
+    // init game
     init();
 
     // render the first frame
@@ -348,4 +366,10 @@ int main(int argc, char *argv[])
         free(g_map[i]);
     }
     free(g_map);
+
+    
+    static __u16 smile_bmp[]=
+        {0x3c, 0x42, 0x2889, 0x0485, 0x0485, 0x2889, 0x42, 0x3c};
+
+    write_block(g_file, smile_bmp);
 }

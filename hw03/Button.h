@@ -4,8 +4,6 @@
 #ifndef BUTTON_H_
 #define BUTTON_H_
 
-#include <gpiod.h>
-
 class Button
 {
 public:
@@ -13,7 +11,7 @@ public:
     ~Button();
 
     // init all the stuffs. Must be called before read.
-    int init(int chip_number, int line_number);
+    int init(int gpio);
     // read button value
     int read();
     // get if the key is down
@@ -22,10 +20,8 @@ public:
     bool is_released();
 
 private:
-    int chip_num;
-    unsigned int line_num;
-	struct gpiod_chip *chip;
-	struct gpiod_line *line;
+    int gpio;
+    int gpio_fd;
 
     bool last_state;
 

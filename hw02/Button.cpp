@@ -4,7 +4,7 @@
 #include <unistd.h>
 
 Button::Button(){
-
+	last_state = true;
 }
 
 Button::~Button(){
@@ -40,3 +40,20 @@ int Button::read(){
     return gpiod_line_get_value(line);
 }
 
+bool Button::get_key_down() {
+	return !read();
+}
+
+bool Button::is_released() {
+
+	bool current_state = get_key_down();
+	if (current_state != last_state) {
+		last_state = current_state;
+		if (last_state) {
+			return true;
+		}
+	}
+
+	return false;
+
+}
